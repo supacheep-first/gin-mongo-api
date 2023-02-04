@@ -3,7 +3,7 @@
 list api in this repo
 
 
-post: `/user`
+POST: `/user`
 ```json
 {
     "name": "leonel messi",
