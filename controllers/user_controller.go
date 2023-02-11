@@ -4,7 +4,6 @@ import (
 	"context"
 	"gin-mongo-api/configs"
 	"gin-mongo-api/models"
-	"gin-mongo-api/responses"
 	"net/http"
 	"time"
 
@@ -12,25 +11,30 @@ import (
 	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var playerCollection *mongo.Collection = configs.GetCollection(configs.DB, "players")
+var playerCollection = configs.GetCollection(configs.DB, "players")
 var validate = validator.New()
 
 func CreatePlayer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		var player models.Player
+		player := models.Player{}
 		defer cancel()
 
-		if err := c.BindJSON(&player); err != nil {
-			c.JSON(http.StatusBadRequest, responses.PlayerResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+		if err := c.ShouldBindJSON(&player); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  http.StatusBadRequest,
+				"message": err.Error(),
+			})
 			return
 		}
 
 		if validationErr := validate.Struct(&player); validationErr != nil {
-			c.JSON(http.StatusBadRequest, responses.PlayerResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": validationErr.Error()}})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status":  http.StatusInternalServerError,
+				"message": validationErr.Error(),
+			})
 			return
 		}
 
@@ -41,13 +45,16 @@ func CreatePlayer() gin.HandlerFunc {
 			Position: player.Position,
 		}
 
-		result, err := playerCollection.InsertOne(ctx, newPlayer)
+		_, err := playerCollection.InsertOne(ctx, newPlayer)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status":  http.StatusInternalServerError,
+				"message": err.Error(),
+			})
 			return
 		}
 
-		c.JSON(http.StatusCreated, responses.PlayerResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
+		c.JSON(http.StatusCreated, newPlayer)
 	}
 }
 
@@ -55,16 +62,19 @@ func GetPlayer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		playerId := c.Param("playerId")
-		var player models.Player
+		player := models.Player{}
 		defer cancel()
 		objId, _ := primitive.ObjectIDFromHex(playerId)
 
 		err := playerCollection.FindOne(ctx, bson.M{"_id": objId}).Decode(&player)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			c.JSON(http.StatusNotFound, gin.H{
+				"status":  http.StatusNotFound,
+				"message": err.Error(),
+			})
 			return
 		}
-		c.JSON(http.StatusOK, responses.PlayerResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": player}})
+		c.JSON(http.StatusOK, player)
 	}
 }
 
@@ -72,18 +82,25 @@ func EditPlayer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		playerId := c.Param("playerId")
-		var player models.Player
+		player := models.Player{}
 		defer cancel()
 
 		ObjId, _ := primitive.ObjectIDFromHex(playerId)
 
-		if err := c.BindJSON(&player); err != nil {
-			c.JSON(http.StatusBadRequest, responses.PlayerResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+		if err := c.ShouldBindJSON(&player); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  http.StatusBadRequest,
+				"message": err.Error(),
+			})
 			return
 		}
 
-		if validationErr := validate.Struct(&player); validationErr != nil {
-			c.JSON(http.StatusBadRequest, responses.PlayerResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": validationErr.Error()}})
+		validationErr := validate.Struct(&player)
+		if validationErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status":  http.StatusInternalServerError,
+				"message": validationErr.Error(),
+			})
 			return
 		}
 
@@ -93,21 +110,37 @@ func EditPlayer() gin.HandlerFunc {
 			"position": player.Position,
 		}
 
-		result, err := playerCollection.UpdateOne(ctx, bson.M{"_id": ObjId}, bson.M{"$set": update})
+		_player := models.Player{}
+		err := playerCollection.FindOne(ctx, bson.M{"_id": ObjId}).Decode(&_player)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			c.JSON(http.StatusNotFound, gin.H{
+				"status":  http.StatusNotFound,
+				"message": "Player with specified ID not found!",
+			})
 			return
 		}
 
-		var updatedPlayer models.Player
+		result, err := playerCollection.UpdateOne(ctx, bson.M{"_id": ObjId}, bson.M{"$set": update})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status":  http.StatusInternalServerError,
+				"message": err.Error(),
+			})
+			return
+		}
+
+		updatedPlayer := models.Player{}
 		if result.MatchedCount == 1 {
 			err := playerCollection.FindOne(ctx, bson.M{"_id": ObjId}).Decode(&updatedPlayer)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"status":  http.StatusInternalServerError,
+					"message": err.Error(),
+				})
 				return
 			}
 		}
-		c.JSON(http.StatusOK, responses.PlayerResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": updatedPlayer}})
+		c.JSON(http.StatusOK, updatedPlayer)
 	}
 }
 
@@ -122,38 +155,49 @@ func DeletePlayer() gin.HandlerFunc {
 		result, err := playerCollection.DeleteOne(ctx, bson.M{"_id": objId})
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status":  http.StatusInternalServerError,
+				"message": err.Error(),
+			})
 			return
 		}
 
 		if result.DeletedCount < 1 {
-			c.JSON(http.StatusNotFound, responses.PlayerResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"data": "Player with specified ID not found!"}})
+			c.JSON(http.StatusNotFound, gin.H{
+				"status":  http.StatusNotFound,
+				"message": "Player with specified ID not found!",
+			})
 			return
 		}
-		c.JSON(http.StatusOK, responses.PlayerResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Player successfully deleted!"}})
+		c.JSON(http.StatusOK, gin.H{"message": "Player successfully deleted!"})
 	}
 }
 
 func GetAllPlayers() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		var players []models.Player
+		players := []models.Player{}
 		defer cancel()
 
 		result, err := playerCollection.Find(ctx, bson.M{})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status":  http.StatusInternalServerError,
+				"message": err.Error(),
+			})
 			return
 		}
 		defer result.Close(ctx)
 		for result.Next(ctx) {
-			var siglePlayer models.Player
+			siglePlayer := models.Player{}
 			if err := result.Decode(&siglePlayer); err != nil {
-				c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"status":  http.StatusInternalServerError,
+					"message": err.Error(),
+				})
 			}
 			players = append(players, siglePlayer)
 		}
-		c.JSON(http.StatusOK, responses.PlayerResponse{Status: http.StatusOK, Message: "players", Data: map[string]interface{}{"data": players}})
+		c.JSON(http.StatusOK, players)
 	}
-
 }
