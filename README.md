@@ -3,7 +3,7 @@
 list api in this repo
 
 
-POST: `/player`
+### POST: `/player`
 ```json
 {
     "name": "Lionel Messi",
@@ -12,7 +12,7 @@ POST: `/player`
 }
 ```
 
-GET: `/player/:playerId`
+### GET: `/player/:playerId`
 response example: 
 ```json
 {
@@ -29,7 +29,7 @@ response example:
 }
 ```
 
-PUT: `/player/:playerId`
+### PUT: `/player/:playerId`
 ```json
 {
     "name": "Lionel Messi",
@@ -38,7 +38,7 @@ PUT: `/player/:playerId`
 }
 ```
 
-DELETE: `/player/:playerId`
+### DELETE: `/player/:playerId`
 response example: 
 ```json
 {
@@ -50,7 +50,7 @@ response example:
 }
 ```
 
-GET: `/players`
+### GET: `/players`
 response example: 
 ```json
 {
