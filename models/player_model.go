@@ -2,9 +2,9 @@ package models
 
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
-type User struct {
+type Player struct {
 	Id       primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	Name     string             `json:"name,omitempty" validate:"required"`
-	Location string             `json:"location,omitempty" validate:"required"`
-	Title    string             `json:"title,omitempty" validate:"required"`
+	Region   string             `json:"region,omitempty" validate:"required"`
+	Position string             `json:"position,omitempty" validate:"required"`
 }

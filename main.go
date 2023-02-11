@@ -12,7 +12,7 @@ func main() {
 
 	configs.ConnectDB()
 
-	routes.UserRoute(r)
+	routes.PlayerRoute(r)
 
 	r.Run()
 }

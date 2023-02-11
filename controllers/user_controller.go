@@ -15,145 +15,145 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var userCollection *mongo.Collection = configs.GetCollection(configs.DB, "users")
+var playerCollection *mongo.Collection = configs.GetCollection(configs.DB, "players")
 var validate = validator.New()
 
-func CreateUser() gin.HandlerFunc {
+func CreatePlayer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		var user models.User
+		var player models.Player
 		defer cancel()
 
-		if err := c.BindJSON(&user); err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+		if err := c.BindJSON(&player); err != nil {
+			c.JSON(http.StatusBadRequest, responses.PlayerResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 			return
 		}
 
-		if validationErr := validate.Struct(&user); validationErr != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": validationErr.Error()}})
+		if validationErr := validate.Struct(&player); validationErr != nil {
+			c.JSON(http.StatusBadRequest, responses.PlayerResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": validationErr.Error()}})
 			return
 		}
 
-		newUser := models.User{
+		newPlayer := models.Player{
 			Id:       primitive.NewObjectID(),
-			Name:     user.Name,
-			Location: user.Location,
-			Title:    user.Title,
+			Name:     player.Name,
+			Region:   player.Region,
+			Position: player.Position,
 		}
 
-		result, err := userCollection.InsertOne(ctx, newUser)
+		result, err := playerCollection.InsertOne(ctx, newPlayer)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 			return
 		}
 
-		c.JSON(http.StatusCreated, responses.UserResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
+		c.JSON(http.StatusCreated, responses.PlayerResponse{Status: http.StatusCreated, Message: "success", Data: map[string]interface{}{"data": result}})
 	}
 }
 
-func GetUser() gin.HandlerFunc {
+func GetPlayer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		userId := c.Param("userId")
-		var user models.User
+		playerId := c.Param("playerId")
+		var player models.Player
 		defer cancel()
-		objId, _ := primitive.ObjectIDFromHex(userId)
+		objId, _ := primitive.ObjectIDFromHex(playerId)
 
-		err := userCollection.FindOne(ctx, bson.M{"_id": objId}).Decode(&user)
+		err := playerCollection.FindOne(ctx, bson.M{"_id": objId}).Decode(&player)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 			return
 		}
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}})
+		c.JSON(http.StatusOK, responses.PlayerResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": player}})
 	}
 }
 
-func EditUser() gin.HandlerFunc {
+func EditPlayer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		userId := c.Param("userId")
-		var user models.User
+		playerId := c.Param("playerId")
+		var player models.Player
 		defer cancel()
 
-		ObjId, _ := primitive.ObjectIDFromHex(userId)
+		ObjId, _ := primitive.ObjectIDFromHex(playerId)
 
-		if err := c.BindJSON(&user); err != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+		if err := c.BindJSON(&player); err != nil {
+			c.JSON(http.StatusBadRequest, responses.PlayerResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 			return
 		}
 
-		if validationErr := validate.Struct(&user); validationErr != nil {
-			c.JSON(http.StatusBadRequest, responses.UserResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": validationErr.Error()}})
+		if validationErr := validate.Struct(&player); validationErr != nil {
+			c.JSON(http.StatusBadRequest, responses.PlayerResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": validationErr.Error()}})
 			return
 		}
 
 		update := bson.M{
-			"name":     user.Name,
-			"location": user.Location,
-			"title":    user.Title,
+			"name":     player.Name,
+			"region":   player.Region,
+			"position": player.Position,
 		}
 
-		result, err := userCollection.UpdateOne(ctx, bson.M{"_id": ObjId}, bson.M{"$set": update})
+		result, err := playerCollection.UpdateOne(ctx, bson.M{"_id": ObjId}, bson.M{"$set": update})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 			return
 		}
 
-		var updatedUser models.User
+		var updatedPlayer models.Player
 		if result.MatchedCount == 1 {
-			err := userCollection.FindOne(ctx, bson.M{"_id": ObjId}).Decode(&updatedUser)
+			err := playerCollection.FindOne(ctx, bson.M{"_id": ObjId}).Decode(&updatedPlayer)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+				c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 				return
 			}
 		}
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": updatedUser}})
+		c.JSON(http.StatusOK, responses.PlayerResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": updatedPlayer}})
 	}
 }
 
-func DeleteUser() gin.HandlerFunc {
+func DeletePlayer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		userId := c.Param("userId")
+		playerId := c.Param("playerId")
 		defer cancel()
 
-		objId, _ := primitive.ObjectIDFromHex(userId)
+		objId, _ := primitive.ObjectIDFromHex(playerId)
 
-		result, err := userCollection.DeleteOne(ctx, bson.M{"_id": objId})
+		result, err := playerCollection.DeleteOne(ctx, bson.M{"_id": objId})
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 			return
 		}
 
 		if result.DeletedCount < 1 {
-			c.JSON(http.StatusNotFound, responses.UserResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"data": "User with specified ID not found!"}})
+			c.JSON(http.StatusNotFound, responses.PlayerResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"data": "Player with specified ID not found!"}})
 			return
 		}
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "User successfully deleted!"}})
+		c.JSON(http.StatusOK, responses.PlayerResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": "Player successfully deleted!"}})
 	}
 }
 
-func GetAllUsers() gin.HandlerFunc {
+func GetAllPlayers() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		var users []models.User
+		var players []models.Player
 		defer cancel()
 
-		result, err := userCollection.Find(ctx, bson.M{})
+		result, err := playerCollection.Find(ctx, bson.M{})
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 			return
 		}
 		defer result.Close(ctx)
 		for result.Next(ctx) {
-			var sigleUser models.User
-			if err := result.Decode(&sigleUser); err != nil {
-				c.JSON(http.StatusInternalServerError, responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			var siglePlayer models.Player
+			if err := result.Decode(&siglePlayer); err != nil {
+				c.JSON(http.StatusInternalServerError, responses.PlayerResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 			}
-			users = append(users, sigleUser)
+			players = append(players, siglePlayer)
 		}
-		c.JSON(http.StatusOK, responses.UserResponse{Status: http.StatusOK, Message: "users", Data: map[string]interface{}{"data": users}})
+		c.JSON(http.StatusOK, responses.PlayerResponse{Status: http.StatusOK, Message: "players", Data: map[string]interface{}{"data": players}})
 	}
 
 }

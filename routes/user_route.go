@@ -6,10 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func UserRoute(router *gin.Engine) {
-	router.POST("/user", controllers.CreateUser())
-	router.GET("/user/:userId", controllers.GetUser())
-	router.PUT("/user/:userId", controllers.EditUser())
-	router.DELETE("/user/:userId", controllers.DeleteUser())
-	router.GET("/users", controllers.GetAllUsers())
+func PlayerRoute(router *gin.Engine) {
+	router.POST("/player", controllers.CreatePlayer())
+	router.GET("/player/:playerId", controllers.GetPlayer())
+	router.PUT("/player/:playerId", controllers.EditPlayer())
+	router.DELETE("/player/:playerId", controllers.DeletePlayer())
+	router.GET("/players", controllers.GetAllPlayers())
 }
