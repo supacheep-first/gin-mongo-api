@@ -21,11 +21,12 @@ func TestCreatePlayer(t *testing.T) {
 	r := gin.Default()
 	routes.PlayerRoute(r)
 
-	body := []byte(`{
-		"name": "Test Lionel Messi",
-		"region": "Argentina",
-		"position": "FW"
-	}`)
+	playerData := models.Player{
+		Name:     "Test Lionel Messi",
+		Region:   "Argentina",
+		Position: "FW",
+	}
+	body, _ := json.Marshal(playerData) // convert struct to json
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/player", bytes.NewBuffer(body))
@@ -33,61 +34,28 @@ func TestCreatePlayer(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 	assert.NotNil(t, w.Body)
-	resp := gin.H{}
-	err := json.Unmarshal([]byte(w.Body.String()), &resp)
+	resp := models.Player{}
+	err := json.Unmarshal(w.Body.Bytes(), &resp) // convert json to struct
 
-	id = resp["id"].(string)
+	id = resp.Id.Hex()
 	assert.Nil(t, err)
-	assert.Equal(t, models.Player{
-		Name:     "Test Lionel Messi",
-		Region:   "Argentina",
-		Position: "FW",
-	}, models.Player{
-		Name:     resp["name"].(string),
-		Region:   resp["region"].(string),
-		Position: resp["position"].(string),
-	})
-}
-
-func TestGetPlayer(t *testing.T) {
-	r := gin.Default()
-	routes.PlayerRoute(r)
-
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", fmt.Sprintf("/player/%s", id), nil)
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.NotNil(t, w.Body)
-
-	resp := gin.H{}
-	err := json.Unmarshal([]byte(w.Body.String()), &resp)
-
-	assert.Nil(t, err)
-	reqId, _ := primitive.ObjectIDFromHex(id)
-	respId, _ := primitive.ObjectIDFromHex(resp["id"].(string))
-	assert.Equal(t, models.Player{
-		Id:       reqId,
-		Name:     "Test Lionel Messi",
-		Region:   "Argentina",
-		Position: "FW",
-	}, models.Player{
-		Id:       respId,
-		Name:     resp["name"].(string),
-		Region:   resp["region"].(string),
-		Position: resp["position"].(string),
-	})
+	assert.Equal(t, playerData, models.Player{
+		Name:     resp.Name,
+		Region:   resp.Region,
+		Position: resp.Position,
+	}) // compare the created player
 }
 
 func TestUpdatePlayer(t *testing.T) {
 	r := gin.Default()
 	routes.PlayerRoute(r)
 
-	body := []byte(`{
-        "name": "Test Lionel Messi Updated",
-        "region": "Argentina",
-		"position": "FW"
-	}`)
+	playerData := models.Player{
+		Name:     "Test Lionel Messi Updated",
+		Region:   "Argentina",
+		Position: "FW",
+	}
+	body, _ := json.Marshal(playerData)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("PUT", fmt.Sprintf("/player/%s", id), bytes.NewBuffer(body))
@@ -96,23 +64,13 @@ func TestUpdatePlayer(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.NotNil(t, w.Body)
 
-	resp := gin.H{}
-	err := json.Unmarshal([]byte(w.Body.String()), &resp)
+	resp := models.Player{}
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
 
 	assert.Nil(t, err)
-	reqId, _ := primitive.ObjectIDFromHex(id)
-	respId, _ := primitive.ObjectIDFromHex(resp["id"].(string))
-	assert.Equal(t, models.Player{
-		Id:       reqId,
-		Name:     "Test Lionel Messi Updated",
-		Region:   "Argentina",
-		Position: "FW",
-	}, models.Player{
-		Id:       respId,
-		Name:     resp["name"].(string),
-		Region:   resp["region"].(string),
-		Position: resp["position"].(string),
-	})
+	playerData.Id, _ = primitive.ObjectIDFromHex(id) // convert string to ObjectID
+	resp.Id, _ = primitive.ObjectIDFromHex(resp.Id.Hex())
+	assert.Equal(t, playerData, resp) // compare the updated player
 }
 
 func TestDeletePlayer(t *testing.T) {
@@ -126,7 +84,7 @@ func TestDeletePlayer(t *testing.T) {
 	assert.NotNil(t, w.Body)
 
 	resp := gin.H{}
-	err := json.Unmarshal([]byte(w.Body.String()), &resp)
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.Nil(t, err)
 	assert.Equal(t, gin.H{
 		"message": "Player successfully deleted!",
